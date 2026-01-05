@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./public/logo.png" alt="AskMap Logo" width="150">
+</p
+
 # AskMap.auto - AI-Powered Automotive Companion (Case Study)
 
 ![Project Status](https://img.shields.io/badge/status-archived/paused-orange)
