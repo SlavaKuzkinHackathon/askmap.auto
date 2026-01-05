@@ -30,7 +30,7 @@
 ![База знаний](./screenshots/askmap.auto_8.png)
 ![Добавление правила в базу знаний](./screenshots/askmap.auto_9.png)
 ![Анализ (парсинг), выборка ключевых решений(AI) по ссылке на форум или статью](./screenshots/askmap.auto_10.png)
-![Редактирование правила из базы знаний](./screenshots/askmap.auto_10.png)
+![Редактирование правила из базы знаний](./screenshots/askmap.auto_11.png)
 
 ---
 
