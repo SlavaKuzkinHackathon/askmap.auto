@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+.input-style {
+  @apply bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5;
+}
+
+.btn-primary {
+  @apply w-full text-white bg-emerald-600 hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center disabled:bg-gray-400;
+}
+
+/*************************************/
+
+.car-scheme [data-slug] {
+  fill: var(--default-fill);
+  cursor: pointer;
+  transition: fill 0.3s ease-in-out;
+}
+.car-scheme [data-slug]:hover {
+  opacity: 0.8;
+}
+
+/* Перечисляем ВСЕ ИЗВЕСТНЫЕ data-slug из SVG */
+.car-scheme [data-slug="zone_engine"]  { fill: var(--fill-zone_engine, var(--default-fill)); }
+.car-scheme [data-slug="zone-wheels"]  { fill: var(--fill-zone-wheels, var(--default-fill)); }
+.car-scheme [data-slug="zone_chassis"] { fill: var(--fill-zone_chassis, var(--default-fill)); }
+.car-scheme [data-slug="zone-salon"]   { fill: var(--fill-zone-salon, var(--default-fill)); }
+.car-scheme [data-slug="headlights"]   { fill: var(--fill-headlights, var(--default-fill)); }

@@ -1,0 +1,424 @@
+// prisma/schema.prisma
+// ========================================================================
+// AskMap v2.0: Схема данных для "Интеллектуального помощника автовладельца"
+// Включает "Базу Знаний" для модуля "ASK-Диагност".
+// ========================================================================
+
+
+generator client {
+  provider = "prisma-client-js" // Указывает Prisma сгенерировать TypeScript-клиент
+}
+
+datasource db {
+  provider = "postgresql"    // Используем СУБД PostgreSQL
+  url      = env("DATABASE_URL") // URL для подключения к базе данных берется из файла .env
+}
+
+// ========================================================================
+// ПЕРЕЧИСЛЕНИЯ (Enums)
+// Это строго заданные списки возможных значений для определенных полей.
+// Помогает избежать ошибок и стандартизировать данные.
+// ========================================================================
+
+enum Role {
+  USER            // Обычный пользователь, частный автовладелец
+  SERVICE_CENTER  // Представитель автосервиса
+  FLEET_OWNER     // Владелец автопарка
+  ADMIN           // Администратор платформы
+}
+
+enum ComponentCategory {
+  ENGINE_SYSTEM   // Двигатель и его системы (ГРМ, зажигание, охлаждение)
+  TRANSMISSION    // Трансмиссия (КПП, сцепление, приводы)
+  BRAKE_SYSTEM    // Тормозная система
+  SUSPENSION      // Подвеска (амортизаторы, рычаги)
+  STEERING        // Рулевое управление
+  ELECTRICAL      // Электрика и электроника
+  BODY            // Кузов и салон
+  WHEELS_TIRES    // Колеса и шины
+  OTHER           // Прочие категории компонентов
+}
+
+enum ComponentStatus {
+  OK              // ?? Состояние узла в норме
+  ATTENTION       // ?? Требует внимания (подходит срок замены, есть замечания)
+  CRITICAL        // ?? Критическое состояние, требуется срочный ремонт
+}
+
+enum DocumentType {
+  RECEIPT         // Кассовый чек
+  WORK_ORDER      // Заказ-наряд из СТО
+  ODOMETER        // Фотография показаний одометра
+  OTHER           // Другой тип документа
+}
+
+enum DocumentStatus {
+  UPLOADED        // Файл загружен на сервер, ожидает обработки
+  PROCESSING      // Файл в процессе распознавания (OCR)
+  PARSED          // Распознавание завершено, данные извлечены
+  FAILED          // Ошибка во время распознавания
+}
+
+enum RecordSource {
+  MANUAL          // Запись создана пользователем вручную
+  OCR             // Запись создана автоматически из распознанного документа
+  QR              // Запись создана по QR-коду (будущая фича)
+  OBD             // Запись создана по данным с OBD-сканера (будущая фича)
+  SERVICE_CENTER  // Запись добавлена партнерским автосервисом
+  IMPORT          // Запись импортирована из другого источника
+}
+
+enum ServiceRecordStatus {
+  DRAFT           // Черновик (например, после OCR, требует подтверждения пользователем)
+  CONFIRMED       // Подтвержденная запись (основной статус)
+  VERIFIED        // Проверенная запись (например, подтверждена СТО)
+}
+
+enum OdometerSource {
+  MANUAL          // Пробег введен вручную
+  OCR             // Пробег распознан из документа
+  OBD             // Пробег получен с OBD-сканера
+  OEM             // Пробег получен из телематической системы производителя
+  TELEMATICS      // Пробег получен из внешней телематической системы
+}
+
+// ENUM'ы ДЛЯ "ASK-Диагност" ===
+enum SymptomCode {
+  KNOCK
+  VIBRATION 
+  SQUEAK
+  NOISE
+  SMELL
+  LEAK
+  WARNING_LIGHT
+  STARTING_ISSUE
+  POWER_LOSS
+}
+
+enum SourceType {
+  TSB
+  FORUM
+  MANUAL
+  PLATFORM_STATS
+}
+
+// ========================================================================
+// МОДЕЛИ ДАННЫХ (описывают таблицы в базе данных)
+// ========================================================================
+
+// --- Пользователи и владение ---
+
+model ServiceType {
+  id    String @id @default(cuid())
+  name  String @unique
+  slug  String @unique
+  serviceRecords ServiceRecord[]
+}
+
+model User {
+  id           String      @id @default(cuid()) // Уникальный ID пользователя
+  email        String      @unique               // Email для входа, должен быть уникальным
+  name         String?                          // Имя пользователя (необязательно)
+  passwordHash String                           // ХЭШ пароля (ни в коем случае не сам пароль)
+  role         Role        @default(USER)       // Роль пользователя в системе
+  createdAt    DateTime    @default(now())      // Дата и время создания аккаунта
+  updatedAt    DateTime    @updatedAt            // Дата и время последнего обновления
+  
+  // Связи
+  ownerships   Ownership[]                      // Список всех владений пользователя (связь с таблицей Ownership)
+  documents    Document[]  @relation("UserDocuments") // Документы, загруженные этим пользователем
+
+  // --- связи для Диагноста ---
+  diagnosticCases      DiagnosticCase[] // Диагностические кейсы, которые создал пользователь
+  diagnosticEvidences  Evidence[]       // "Доказательства", которые добавил админ/эксперт
+
+}
+
+model Ownership {
+  id        String   @id @default(cuid())       // Уникальный ID записи о владении
+  startDate DateTime @default(now())            // Дата, когда пользователь стал владельцем авто
+  endDate   DateTime?                           // Дата, когда пользователь перестал быть владельцем (null, если текущий)
+  
+  carId     String                              // ID связанного автомобиля (внешний ключ)
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade) // Связь с моделью Car. При удалении авто, удаляется и эта запись.
+  
+  userId    String                              // ID связанного пользователя (внешний ключ)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict) // Связь с моделью User. Нельзя удалить пользователя, если он владеет авто.
+
+  @@index([carId])                              // Индекс для ускорения поиска по автомобилю
+  @@index([userId])                             // Индекс для ускорения поиска по пользователю
+}
+
+// --- Автомобили и их история ---
+
+model Car {
+  id               String                 @id @default(cuid()) // Уникальный ID автомобиля
+  make             String                                      // Марка (напр., "Toyota")
+  model            String                                      // Модель (напр., "Camry")
+  year             Int                                         // Год выпуска
+  vin              String?                @unique              // VIN-номер (необязателен, но уникален если есть)
+  licensePlate     String?                @unique              // Номерной знак (необязателен, но уникален если есть)
+  createdAt        DateTime               @default(now())      // Дата и время добавления авто в систему
+  updatedAt        DateTime               @updatedAt            // Дата и время последнего обновления
+
+  ownershipHistory Ownership[]                                 // Вся история владельцев этого авто
+  serviceRecords   ServiceRecord[]                             // Вся история обслуживания этого авто
+  componentStates  CarComponentState[]                         // Текущее состояние всех узлов этого авто
+  reminders        MaintenanceReminder[]                       // Напоминания о ТО для этого авто
+  odometerReadings OdometerReading[]                           // Вся история показаний пробега
+  documents        Document[]             @relation("CarDocuments") // Документы, привязанные к этому авто
+}
+
+model ServiceRecord {
+  id              String @id @default(cuid())
+  date            DateTime?
+  mileage         Int?
+  serviceTypeId   String
+  serviceType     ServiceType @relation(fields: [serviceTypeId], references: [id])
+  title           String
+
+  // --- ПОЛЯ для учета ресурса конкретной детали ---
+  installedPartLifespanKm     Int? // Ресурс установленной детали в км
+  installedPartLifespanMonths Int? // Ресурс установленной детали в месяцах
+
+  description     String?
+  cost            Decimal?
+  location        String?
+  diagnosticCodes String[]
+  attachments     String[]
+  status          ServiceRecordStatus @default(DRAFT)
+  source          RecordSource @default(MANUAL)
+  confidence      Float?
+  sourceDocumentId String?
+  sourceDocument  Document? @relation("ServiceRecord_sourceDocument", fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  carId           String
+  car             Car @relation(fields: [carId], references: [id], onDelete: Cascade)
+  components      VehicleComponent[]
+
+  // --- поле для связи с диагностикой ---
+  // ID реального кейса, который привел к этому ремонту
+  diagnosticCaseId String?        @unique // У одного ремонта может быть только один кейс-причина
+  diagnosticCase   DiagnosticCase? @relation(fields: [diagnosticCaseId], references: [id], onDelete: SetNull)
+
+  @@index([carId, date])
+}
+
+model OdometerReading {
+  id         String         @id @default(cuid()) // Уникальный ID записи о пробеге
+  value      Int                                 // Значение пробега в километрах
+  date       DateTime       @default(now())     // Дата, когда был зафиксирован пробег
+  source     OdometerSource @default(MANUAL)    // Источник данных о пробеге
+  
+  carId      String                              // ID связанного автомобиля
+  car        Car            @relation(fields: [carId], references: [id], onDelete: Cascade)
+  
+  documentId String?                             // ID документа, из которого взят пробег
+  document   Document?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  
+  createdAt  DateTime       @default(now())
+  
+  @@index([carId, date])
+}
+
+// --- Справочники и вспомогательные модели ---
+
+model MaintenanceReminder {
+  id          String   @id @default(cuid()) // Уникальный ID напоминания
+  title       String                        // Название напоминания, напр., "Замена масла"
+  notes       String?                       // Дополнительные заметки
+  dueMileage  Int?                          // Пробег, при котором нужно выполнить
+  dueDate     DateTime?                     // Дата, к которой нужно выполнить
+  isCompleted Boolean  @default(false)      // Отметка о выполнении
+  
+  carId       String                        // ID связанного автомобиля
+  car         Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  
+  @@index([carId])
+}
+
+model VehicleComponent {
+  id             String            @id @default(cuid()) // Уникальный ID узла
+  partCode       String            @unique
+  slug           String?            @unique              // Уникальный код для связи с SVG-схемой (напр., "engine_oil_filter")
+  name           String                                 // Человекочитаемое название ("Масляный фильтр")
+  category       ComponentCategory                      // Категория узла (Двигатель, Тормоза...)
+  description    String?                                // Описание узла
+
+    // --- ПОЛЯ ДЛЯ "УМНОЙ" ЛОГИКИ ---
+  lifespanKm       Int?    // Рекомендованный ресурс в километрах (напр., 10000 для масла)
+  lifespanMonths   Int?    // Рекомендованный ресурс в месяцах (напр., 12 для масла)
+  importance       Int     @default(1) // Важность компонента (1-5), где 5 - самый важный
+  isSafetyCritical Boolean @default(false) // Является ли узел критичным для безопасности (напр., тормоза)
+
+// --- связь с базой знаний ---
+  symptomCauses    SymptomCause[]    // Возможные причины, связанные с этим компонентом
+ 
+  
+  serviceRecords ServiceRecord[]                        // С какими ремонтами был связан этот тип узла
+  carStates      CarComponentState[]                    // В каком состоянии этот узел находится на разных машинах
+  aliases        ComponentAlias[]                       // Синонимы для этого узла для OCR
+}
+
+model ComponentAlias {
+  id          String           @id @default(cuid()) // Уникальный ID синонима
+  alias       String           @unique              // Текст синонима (напр., "замена масла")
+  locale      String?                               // Язык синонима ("ru", "en")
+  weight      Int              @default(1)          // Вес (важность) синонима (для будущего)
+  
+  componentId String                                 // ID компонента, к которому относится синоним
+  component   VehicleComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime         @default(now())
+  
+  @@index([componentId])
+}
+
+model CarComponentState {
+  id          String           @id @default(cuid()) // Уникальный ID состояния
+  status      ComponentStatus                       // Текущий статус узла (ОК, Внимание, Критично)
+  notes       String?                               // Заметки диагноста или системы
+  lastChecked DateTime         @default(now()) @updatedAt // Когда статус был обновлен
+
+  // --- НОВЫЕ ПОЛЯ ДЛЯ РУЧНОЙ КОРРЕКТИРОВКИ ---
+  // Эти поля имеют приоритет над автоматически рассчитанным status
+  manualStatus          ComponentStatus? // Статус, установленный пользователем вручную
+  manualStatusExpiresAt DateTime?        // Дата, до которой действует ручной статус (напр., до следующего ТО)
+  manualStatusComment   String?          // Комментарий пользователя ("Мастер сказал, еще походит")
+
+  carId       String
+  car         Car              @relation(fields: [carId], references: [id], onDelete: Cascade)
+  
+  componentId String
+  component   VehicleComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  
+  @@unique([carId, componentId])                      // Гарантирует, что для одной машины может быть только одно состояние одного узла
+}
+
+model Document {
+  id           String          @id @default(cuid()) // Уникальный ID документа
+  type         DocumentType                         // Тип документа (чек, заказ-наряд)
+  status       DocumentStatus  @default(UPLOADED)   // Текущий статус обработки
+  storageUrl   String                               // URL файла в облачном хранилище
+  ocrText      String?                              // Сырой текст, полученный после OCR
+  parsed       Json?                                // Структурированный JSON после парсинга
+  confidence   Float?                               // Общая уверенность в качестве распознавания (0..1)
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  uploaderId   String?
+  uploader     User?           @relation("UserDocuments", fields: [uploaderId], references: [id], onDelete: SetNull)
+  
+  carId        String?
+  car          Car?            @relation("CarDocuments", fields: [carId], references: [id], onDelete: SetNull)
+  
+  serviceRecords   ServiceRecord[] @relation("ServiceRecord_sourceDocument")
+  odometerReadings OdometerReading[]
+}
+
+// =======================================================
+// --- НОВЫЕ МОДЕЛИ ДЛЯ ПАРТНЕРСКОЙ ПРОГРАММЫ ---
+// =======================================================
+
+// Перечисление для типов партнеров
+enum PartnerType {
+  SHOP // Магазин автозапчастей
+  SERVICE_CENTER // СТО
+  SHOP_SERVICE // СТО + автозапчасти
+}
+
+// Модель для хранения информации о партнере
+model Partner {
+  id          String      @id @default(cuid())
+  name        String      // Название, напр., "Автодок"
+  inn         String
+  type        PartnerType // Тип партнера (магазин или СТО)
+  city        String      // Город
+  address     String?     // Адрес
+  phone       String?     // Телефон
+  website     String?     // Ссылка на сайт
+  logoUrl     String?     // URL логотипа
+  isActive    Boolean     @default(true) // Активен ли партнер
+  createdAt   DateTime    @default(now())
+
+  // Связь: один партнер может иметь много скидок
+  discounts   Discount[]
+
+  @@index([city, type]) // Индекс для быстрой фильтрации по городу и типу
+}
+
+// Модель для хранения конкретной скидки от партнера
+model Discount {
+  id          String   @id @default(cuid())
+  title       String   // Краткое название, напр., "Скидка 10% на масла"
+  description String   // Подробное описание: "Скидка 10% на все моторные масла Shell и Mobil..."
+  promoCode   String   // ПРОМОКОД, который показывает пользователь
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  // Связь с партнером
+  partnerId String
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+
+
+// =======================================================
+// --- МОДЕЛИ ДЛЯ "БАЗЫ ЗНАНИЙ" ДИАГНОСТА ---
+// =======================================================
+
+// Модель для хранения правила "Симптом -> Причина (Компонент)"
+model SymptomCause {
+  id        String       @id @default(cuid())
+  symptom   SymptomCode  // Основной симптом, напр., KNOCK (Стук)
+  location  String?      // Уточнение локации, напр., "Спереди справа"
+  condition String?      // Уточнение условия, напр., "На кочках"
+  baseWeight      Float    @default(0.5) // Базовый вес (0-1), задается экспертно
+  
+  // Связь с компонентом, который является причиной
+  componentId     String
+  component       VehicleComponent @relation(fields: [componentId], references: [id])
+  
+  // "Доказательства", подтверждающие это правило
+  evidences       Evidence[]
+
+  @@unique([symptom, location, condition, componentId]) // Правило должно быть уникальным
+}
+
+// Модель для "доказательств", на которых основано правило
+model Evidence {
+  id              String      @id @default(cuid())
+  sourceType      SourceType  // Источник (Форум, TSB, Статистика)
+  url             String?     // Ссылка на источник (напр., на тему на Drom.ru)
+  description     String      // Краткое описание, цитата, подтверждающая связь
+  
+  // К какому правилу "Симптом->Причина" относится это доказательство
+  symptomCauseId  String
+  symptomCause    SymptomCause @relation(fields: [symptomCauseId], references: [id], onDelete: Cascade)
+  
+  // Кем добавлено (для аудита)
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id])
+}
+
+// Модель для хранения реальных, подтвержденных кейсов от пользователей
+// Эта таблица - наш главный источник для обучения и улучшения `baseWeight`
+model DiagnosticCase {
+  id              String      @id @default(cuid())
+  symptomsText    String      // Текст, который ввел пользователь ("стучит спереди")
+  
+  // Структурированные симптомы после анализа LLM
+  symptom         SymptomCode
+  location        String?
+  condition       String?
+  
+  // Связь с пользователем, который создал кейс
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  
+  // Связь с записью о ремонте, которая решила эту проблему
+  // Это самая ценная информация. Пользователь сам подтверждает, что "замена Х решила проблему Y"
+  fixingServiceRecord ServiceRecord?
+}

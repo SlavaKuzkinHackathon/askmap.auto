@@ -1,0 +1,114 @@
+[
+  {
+    "symptom": "KNOCK",
+    "location": "передняя подвеска",
+    "condition": "при вращении руля",
+    "baseWeight": 0.85,
+    "componentPartCode": "ball_joint"
+  },
+  {
+    "symptom": "KNOCK",
+    "location": "в рулевой системе",
+    "condition": "при повороте",
+    "baseWeight": 0.8,
+    "componentPartCode": "steering_rack"
+  },
+  {
+    "symptom": "KNOCK",
+    "location": "спереди",
+    "condition": "при переезде мелких неровностей",
+    "baseWeight": 0.8,
+    "componentPartCode": "ball_joint"
+  },
+  {
+    "symptom": "SQUEAK",
+    "location": "Спереди Сзади",
+    "condition": "При торможении",
+    "baseWeight": 0.8,
+    "componentPartCode": "support"
+  },
+  {
+    "symptom": "SQUEAK",
+    "location": "Спереди",
+    "condition": "При торможении",
+    "baseWeight": 0.9,
+    "componentPartCode": "brake_pads_front"
+  },
+  {
+    "symptom": "NOISE",
+    "location": "Коробка передач",
+    "condition": "на холодную",
+    "baseWeight": 0.75,
+    "componentPartCode": "filter_at"
+  },
+  {
+    "symptom": "NOISE",
+    "location": "передняя подвеска",
+    "condition": "в движении",
+    "baseWeight": 0.8,
+    "componentPartCode": "hub_bearing"
+  },
+  {
+    "symptom": "NOISE",
+    "location": "Коробка передач",
+    "condition": "при нажатии на педаль газа появляется вой",
+    "baseWeight": 0.8,
+    "componentPartCode": "аutomatic_transmission_bearing"
+  },
+  {
+    "symptom": "NOISE",
+    "location": "колеса",
+    "condition": "при увеличении скорости",
+    "baseWeight": 0.8,
+    "componentPartCode": "hub_bearing"
+  },
+  {
+    "symptom": "STARTING_ISSUE",
+    "location": null,
+    "condition": "двигатель отказывается заводиться",
+    "baseWeight": 0.8,
+    "componentPartCode": "spark_plug_wires"
+  },
+  {
+    "symptom": "STARTING_ISSUE",
+    "location": null,
+    "condition": "двигатель отказывается заводиться",
+    "baseWeight": 0.75,
+    "componentPartCode": "battery"
+  },
+  {
+    "symptom": "STARTING_ISSUE",
+    "location": null,
+    "condition": "двигатель отказывается заводиться",
+    "baseWeight": 0.8,
+    "componentPartCode": "starter"
+  },
+  {
+    "symptom": "POWER_LOSS",
+    "location": "Двигатель",
+    "condition": "троение двигателя",
+    "baseWeight": 0.8,
+    "componentPartCode": "spark_plug_wires"
+  },
+  {
+    "symptom": "POWER_LOSS",
+    "location": "Двигатель",
+    "condition": "троение",
+    "baseWeight": 0.8,
+    "componentPartCode": "spark_plugs"
+  },
+  {
+    "symptom": "POWER_LOSS",
+    "location": "Двигатель",
+    "condition": "троение двигателя",
+    "baseWeight": 0.8,
+    "componentPartCode": "oil_removing_caps"
+  },
+  {
+    "symptom": "POWER_LOSS",
+    "location": "Двигатель",
+    "condition": "троение",
+    "baseWeight": 0.8,
+    "componentPartCode": "рiston_rings"
+  }
+]
