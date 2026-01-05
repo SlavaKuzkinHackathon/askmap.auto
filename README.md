@@ -8,8 +8,6 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-**Концепция: "Google Переводчик + Shazam для вашего автомобиля"**
-
 **AskMap.auto** — это полнофункциональный MVP (Minimum Viable Product) веб-приложения, разработанного для помощи автовладельцам. Проект был создан как кейс-стади, демонстрирующий построение сложной full-stack экосистемы с глубокой интеграцией AI.
 
 Разработка велась в сотрудничестве с AI-ассистентами , используя методологию, которую можно назвать "AI-Assisted Wave Coding" — итеративная разработка, где AI выступает в роли "второго пилота", предлагая код и помогая в отладке.
